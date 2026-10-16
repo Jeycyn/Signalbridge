@@ -18,18 +18,31 @@
     <link rel="apple-touch-icon" href="/icon-192.png" />
     <script>
       // Runtime constraint: HMR is disabled in AI Studio preview. Ignore WebSocket connection errors.
-      window.addEventListener('error', function(event) {
-        if (event.message && (event.message.includes('WebSocket') || event.message.includes('ws://') || event.message.includes('wss://'))) {
-          event.preventDefault();
-          event.stopImmediatePropagation();
-        }
-      }, true);
-      window.addEventListener('unhandledrejection', function(event) {
-        if (event.reason && String(event.reason).includes('WebSocket')) {
-          event.preventDefault();
-          event.stopImmediatePropagation();
-        }
-      });
+      (function() {
+        var origConsoleError = console.error;
+        console.error = function() {
+          var msg = arguments[0];
+          if (typeof msg === 'string' && (msg.includes('WebSocket') || msg.includes('websocket') || msg.includes('vite:ws') || msg.includes('[vite] failed to connect to websocket'))) {
+            return;
+          }
+          if (msg instanceof Error && (msg.message.includes('WebSocket') || msg.message.includes('websocket'))) {
+            return;
+          }
+          origConsoleError.apply(console, arguments);
+        };
+        window.addEventListener('error', function(event) {
+          if (event.message && (event.message.includes('WebSocket') || event.message.includes('ws://') || event.message.includes('wss://'))) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+          }
+        }, true);
+        window.addEventListener('unhandledrejection', function(event) {
+          if (event.reason && String(event.reason).includes('WebSocket')) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+          }
+        });
+      })();
     </script>
   </head>
   <body>

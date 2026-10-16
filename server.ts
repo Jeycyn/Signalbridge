@@ -312,14 +312,46 @@ async function startServer() {
       res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
     });
   } else {
-    const isHmrDisabled = process.env.DISABLE_HMR === 'true';
     const vite = await createViteServer({
       server: {
         middlewareMode: true,
-        hmr: isHmrDisabled ? false : { server },
+        hmr: false,
       },
       appType: 'spa',
     });
+
+    // Intercept @vite/client to disable the WebSocket connection runner in iframe preview
+    app.use((req, res, next) => {
+      const url = req.url || '';
+      if (url === '/@vite/client' || url.startsWith('/@vite/client?')) {
+        const originalEnd = res.end;
+        const originalWrite = res.write;
+        const chunks: Buffer[] = [];
+
+        res.write = function (chunk: any, ...args: any[]) {
+          if (chunk) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+          return true;
+        } as any;
+
+        res.end = function (chunk: any, ...args: any[]) {
+          if (chunk) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+          let body = Buffer.concat(chunks).toString('utf-8');
+          // Disarm WebSocket transport attempt in Vite client
+          body = body.replace(
+            /transport\.connect\(createHMRHandler\(handleMessage\)\);/g,
+            '/* [vite:hmr disabled in preview] */'
+          );
+          body = body.replace(
+            /reject\(\/\* @__PURE__ \*\/ new Error\("WebSocket closed without opened\."\)\);/g,
+            'resolve();'
+          );
+          res.setHeader('Content-Length', Buffer.byteLength(body));
+          return (originalEnd as any).apply(res, [body, ...args]);
+        } as any;
+      }
+      next();
+    });
+
     app.use(vite.middlewares);
   }
 

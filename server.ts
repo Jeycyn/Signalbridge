@@ -345,6 +345,14 @@ async function startServer() {
             /reject\(\/\* @__PURE__ \*\/ new Error\("WebSocket closed without opened\."\)\);/g,
             'resolve();'
           );
+          body = body.replace(
+            /else throw new SendBeforeConnectError\("send was called before connect"\);/g,
+            'else return;'
+          );
+          body = body.replace(
+            /else throw new SendBeforeConnectError\("invoke was called before connect"\);/g,
+            'else return;'
+          );
           res.setHeader('Content-Length', Buffer.byteLength(body));
           return (originalEnd as any).apply(res, [body, ...args]);
         } as any;
